@@ -51,56 +51,63 @@ def nextId(connection, tableName):
 
   return rowCount
 
-def rows2Json(rows, key):
+def rows2ObjectArray(rows, key):
   result = []
-
+  
   for r in rows:
-    r2j = {key: r[0]}
-    result.append(r2j)
-
+    r2o = {key:r[0]}
+    result.append(r2o)
+  
   return result
 
 def continents(request):
   sql = 'SELECT DISTINCT continent FROM country ORDER BY continent;'
   rows = fetch(sql)
-  r2j = rows2Json(rows, 'continent')
-
+  r2j = rows2ObjectArray(rows, "continent")
+  print("CONTINENTS/r2j: {}\n".format(r2j))
   return JsonResponse(r2j, safe=False)
 
 def regions(request):
   continent = urllib.parse.unquote(request.GET['continent'])
   sql = "SELECT DISTINCT region FROM country WHERE continent = '" + continent + "' ORDER BY region;"
   rows = fetch(sql)
-  r2j = rows2Json(rows, 'region')
+  r2j = rows2ObjectArray(rows, 'region')
 
   return JsonResponse(r2j, safe=False)
 
 def countries(request):
   region = urllib.parse.unquote(request.GET['region'])
-  sql = "SELECT DISTINCT name FROM country WHERE region = '" + region + "' ORDER BY name;"
+  sql = "SELECT name, code FROM country WHERE region = '" + region + "' ORDER BY name;"
   rows = fetch(sql)
-  r2j = rows2Json(rows, 'country')
+  result = []
+  
+  for r in rows:
+    r2o = {"country":r[0], "code":r[1]}
+    result.append(r2o)
 
-  return JsonResponse(r2j, safe=False)
+  return JsonResponse(result, safe=False)
 
 def country(request):
-  countryName = request.GET['country']
+  countryName = request.GET['name']
   sql = "SELECT * FROM country WHERE name = '{}';".format(countryName)
   rows = fetch(sql)
-  result = {}
-    
+  result = []
+
   for r in rows:
     code, name, continent, region, surfaceArea, independence, population, lifeExpectancy, gnp, gnpOld, localName, governmentForm, headOfState, capital, code2 = r
-    result = { "code": code, "name": name, "continent": continent, "region": region, "surfaceArea": surfaceArea, "independence": independence, "population": population,      "lifeExpectancy": lifeExpectancy, "gnp": gnp, "gnpOld": gnpOld, "localName": localName, "governmentForm": governmentForm, "headOfState": headOfState,
-      "capital": capital, "code2": code2 }
+    r2o = { "code": code, "name": name, "continent": continent, "region": region, "surfaceArea": surfaceArea, "independence": independence,
+        "population": population, "lifeExpectancy": lifeExpectancy, "gnp": gnp, "gnpOld": gnpOld, "localName": localName, "governmentForm": governmentForm, 
+        "headOfState": headOfState, "capital": capital, "code2": code2 
+    }
+    result.append(r2o)
 
   return JsonResponse(result, safe=False)
 
 def cities(request):
-  countryCode = urllib.parse.unquote(request.GET['countryCode'])
-  sql = "SELECT name FROM city WHERE countrycode = '{}' ORDER BY name;".format(countryCode)
+  countryName = urllib.parse.unquote(request.GET['countryName'])
+  sql = "SELECT name FROM city WHERE countryCode = ( SELECT code FROM country WHERE name = '{}' ) ORDER BY name;".format(countryName)
   rows = fetch(sql)
-  r2j = rows2Json(rows, 'city')
+  r2j = rows2ObjectArray(rows, 'city')
 
   return JsonResponse(r2j, safe=False)
 
@@ -108,11 +115,12 @@ def city(request):
   city = urllib.parse.unquote(request.GET['city'])
   sql = "SELECT * FROM city WHERE id = (SELECT id FROM city WHERE name = '{}');".format(city)
   rows = fetch(sql)
-  result = {}
+  result = []
 
   for r in rows:
     cityId, name, countryCode, district, population = r
-    result = {"id": cityId, "name": name, "countryCode": countryCode, "district": district, "population": population}
+    r2o = {"id": cityId, "name": name, "countryCode": countryCode, "district": district, "population": population}
+    result.append(r2o)
 
   return JsonResponse(result, safe=False)
 
@@ -134,14 +142,28 @@ def change(cn, sql):
 def add(request):
   tableName = 'city'
   cn = connect()
+  sql = ''
+  r2j = {}
+  '''
+  try:
+    newId = nextId(cn, tableName)
+    name = request.POST['newCity']
+    country = request.POST['newCountryCode']
+    district = request.POST['district']
+    population = request.POST['population']
+    sql = "INSERT INTO city (id, name, countrycode, district, population) VALUES ({}, '{}', '{}', '{}', {});".format(newId, name, country, district, population)
+    r2j = change(cn, sql)
+  except KeyError as ke:
+    print('add/key error: {}'.format(str(ke)))
+  '''
   newId = nextId(cn, tableName)
-  name = request.POST['city']
-  country = request.POST['countryCode']
-  district = request.POST['district']
-  population = request.POST['population']
-  sql = "INSERT INTO city (id, name, countrycode, district, population) VALUES ({}, '{}', '{}', '{}', {});".format(newId, name, country, district, population)
-
+  name = request.POST.get('newCity', False) # POST['newCity']
+  country = request.POST.get('newCountryCode', False) # ['newCountryCode']
+  district = request.POST.get('district', False) # ['district']
+  population = request.POST.get('population', 0) # ['population']
+  sql = "INSERT INTO city (id, name, countrycode, district, population) VALUES ({}, '{}', '{}', '{}', '{}');".format(newId, name, country, district, population)
   r2j = change(cn, sql)
+
   return JsonResponse(r2j, safe=False)
 
 @csrf_exempt
