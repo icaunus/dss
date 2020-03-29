@@ -1,5 +1,5 @@
 from django.views.decorators.csrf import csrf_exempt
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, JsonResponse, QueryDict
 import psycopg2 as db
 import urllib.parse
 
@@ -208,10 +208,12 @@ def update(request):
   return JsonResponse(r2j, safe=False)
 
 @csrf_exempt
-def delete(request):
-  cityName = request.POST['city']
+def delete(request, cityId):
+  # body = QueryDict(request)
+  # cityId = body.get('cityId')  # request.DELETE.get('cityId')
   cn = connect()
-  sql = "DELETE FROM city WHERE id = (SELECT id FROM city WHERE name = '{}');".format(cityName)
+  sql = "DELETE FROM city WHERE id = {};".format(cityId)
+  print("DELETE: {}\n".format(sql))
   r2j = change(cn, sql)
 
   return JsonResponse(r2j, safe=False)
