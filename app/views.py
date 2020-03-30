@@ -105,7 +105,7 @@ def country(request):
 
 def cities(request):
   countryName = urllib.parse.unquote(request.GET['countryName'])
-  sql = "SELECT name FROM city WHERE countryCode = ( SELECT code FROM country WHERE name = '{}' ) ORDER BY name;".format(countryName)
+  sql = "SELECT name, countrycode FROM city WHERE countryCode = ( SELECT code FROM country WHERE name = '{}' ) ORDER BY name;".format(countryName)
   rows = fetch(sql)
   r2j = rows2ObjectArray(rows, 'city')
 
@@ -113,7 +113,8 @@ def cities(request):
 
 def city(request):
   city = urllib.parse.unquote(request.GET['city'])
-  sql = "SELECT * FROM city WHERE id = (SELECT id FROM city WHERE name = '{}');".format(city)
+  countryCode = request.GET['countryCode']
+  sql = "SELECT * FROM city WHERE id = (SELECT id FROM city WHERE name = '{}' and countrycode = '{}');".format(city, countryCode)
   rows = fetch(sql)
   result = []
 
